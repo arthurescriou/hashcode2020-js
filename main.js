@@ -37,9 +37,32 @@ const readFile = path => {
   }
 }
 
-const score = (req, res) => {
-  return 0
+const removeOutOfTimeBooks = (req, res) => {
+  let timeLeft = req.dayForScanning
+  res.libraries.forEach(library => {
+    const libData = req.libraries[library.id]
+    timeLeft -= libData.signupTime
+    bookleft = timeLeft * libData.bookPerDay
+    if (bookleft < 0) console.log('oups', bookleft)
+    library.books = library.books.slice(0, bookleft - 1)
+  })
+  return res
 }
+
+const score = (req, res) => {
+  const cRes = removeOutOfTimeBooks(req, JSON.parse(JSON.stringify(res)))
+  const bookScores = req.bookScores.map(i => i)
+  return cRes.libraries
+    .map(library => library.books
+      .map(book => {
+        const ret = bookScores[book]
+        bookScores[book] = 0
+        return ret
+      })
+      .reduce((acc, val) => acc + val, 0))
+    .reduce((acc, val) => acc + val, 0)
+}
+
 
 const printResFile = (req, res) => {
 
@@ -61,7 +84,7 @@ const printResFile = (req, res) => {
 
 
 const compute = req => ({
-  name: 'a_example',
+  name: req.name,
   libraries: [{
     id: 1,
     books: [5, 2, 3]
@@ -80,9 +103,9 @@ const main = async () => {
   //   readFile(folder + '/' + file)
   // })
   const file = readFile(folder + '/' + files[0])
-  console.log(file)
-  console.log(files)
-  printResFile(file, compute(file))
+  // console.log(file)
+  const res = compute(file)
+  printResFile(file, res)
 
 }
 

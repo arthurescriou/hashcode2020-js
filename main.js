@@ -68,7 +68,7 @@ const printResFile = (req, res) => {
     return lLine + '\n' + bLine
   }
 
-  const fileToPrint = [res.libraries.length.toString()].concat(res.libraries.map(mapLibrary)).join('\n')
+  const fileToPrint = [res.libraries.filter(l => l.books.length > 0).length.toString()].concat(res.libraries.filter(l => l.books.length > 0).map(mapLibrary)).join('\n')
   if (!res.hasOwnProperty('score')) {
     res.score = score(req, res)
   }

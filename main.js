@@ -131,7 +131,6 @@ const main = async () => {
     printResFile(file, res)
     return score(file, res)
   })
-  // const file = readFile(folder + '/' + files[0])
   console.log(scores)
   console.log(scores.reduce((acc, val) => acc + val, 0))
 }

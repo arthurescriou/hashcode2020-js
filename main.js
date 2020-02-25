@@ -40,11 +40,12 @@ const readFile = path => {
 const removeOutOfTimeBooks = (req, res) => {
   let timeLeft = req.dayForScanning
   res.libraries.forEach(library => {
-    const libData = req.libraries[library.id]
-    timeLeft -= libData.signupTime
-    bookleft = timeLeft * libData.bookPerDay
-    if (bookleft < 0) console.log('oups', bookleft)
-    library.books = library.books.slice(0, bookleft - 1)
+    if (timeLeft > 0) {
+      const libData = req.libraries[library.id]
+      timeLeft -= libData.signupTime
+      bookleft = timeLeft * libData.bookPerDay
+      library.books = library.books.slice(0, bookleft - 1)
+    }
   })
   return res
 }
@@ -83,30 +84,56 @@ const printResFile = (req, res) => {
 }
 
 
-const compute = req => ({
-  name: req.name,
-  libraries: [{
-    id: 1,
-    books: [5, 2, 3]
+const compute = req => {
+  req.libraries.sort((a, b) => a.signupTime - b.signupTime)
+  const libThatSignup = req.libraries.reduce((acc, val) => {
+    if (acc.time + val.signupTime < req.dayForScanning) {
+      acc.lib.push(val)
+      acc.time += val.signupTime
+    }
+    return acc
   }, {
-    id: 0,
-    books: [0, 1, 2, 3, 4]
-  }, ]
-})
+    time: 0,
+    lib: []
+  })
+
+  const alreadyScannedBook = []
+  let timeLeft = req.dayForScanning
+
+  const libraries = libThatSignup.lib.map(lib => {
+    const id = lib.id
+    timeLeft -= lib.signupTime
+    bookleft = timeLeft * lib.bookPerDay
+    lib.books.sort((a, b) => req.books[b] - req.books[a])
+    const books = lib.books.filter(book => !alreadyScannedBook.includes(book)).slice(0, bookleft - 1)
+    alreadyScannedBook.push(books)
+    return {
+      id,
+      books
+    }
+  })
+
+
+  return {
+    name: req.name,
+    libraries
+  }
+}
 
 
 const main = async () => {
   const folder = 'data'
   const files = await readFiles(folder)
 
-  // files.forEach(file => {
-  //   readFile(folder + '/' + file)
-  // })
-  const file = readFile(folder + '/' + files[0])
-  // console.log(file)
-  const res = compute(file)
-  printResFile(file, res)
-
+  const scores = files.map(f => {
+    const file = readFile(folder + '/' + f)
+    const res = compute(file)
+    printResFile(file, res)
+    return score(file, res)
+  })
+  // const file = readFile(folder + '/' + files[0])
+  console.log(scores)
+  console.log(scores.reduce((acc, val) => acc + val, 0))
 }
 
 main()

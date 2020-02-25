@@ -53,17 +53,12 @@ const removeOutOfTimeBooks = (req, res) => {
 const score = (req, res) => {
   const cRes = removeOutOfTimeBooks(req, JSON.parse(JSON.stringify(res)))
   const bookScores = req.bookScores.map(i => i)
-  return cRes.libraries
-    .map(library => library.books
-      .map(book => {
-        const ret = bookScores[book]
-        bookScores[book] = 0
-        return ret
-      })
-      .reduce((acc, val) => acc + val, 0))
-    .reduce((acc, val) => acc + val, 0)
+  return cRes.libraries.map(library => library.books.map(book => {
+    const ret = bookScores[book]
+    bookScores[book] = 0
+    return ret
+  }).reduce((acc, val) => acc + val, 0)).reduce((acc, val) => acc + val, 0)
 }
-
 
 const printResFile = (req, res) => {
 
@@ -73,19 +68,22 @@ const printResFile = (req, res) => {
     return lLine + '\n' + bLine
   }
 
-  const fileToPrint = [
-      res.libraries.length.toString()
-    ].concat(res.libraries.map(mapLibrary))
-    .join('\n')
+  const fileToPrint = [res.libraries.length.toString()].concat(res.libraries.map(mapLibrary)).join('\n')
   if (!res.hasOwnProperty('score')) {
     res.score = score(req, res)
   }
   fs.writeFileSync('res/' + res.name + res.score, fileToPrint)
 }
 
+//bigger sortLibBy get picked first
+const sortLibBy = (lib, req) => {
+  return -lib.signupTime
+  const res = lib.books.map(b => req.bookScores[b]).reduce((acc, val) => acc + val, 0)
+  return res
+}
 
-const compute = req => {
-  req.libraries.sort((a, b) => a.signupTime - b.signupTime)
+const glouton = req => {
+  req.libraries.sort((a, b) => sortLibBy(b, req) - sortLibBy(a, req))
   const libThatSignup = req.libraries.reduce((acc, val) => {
     if (acc.time + val.signupTime < req.dayForScanning) {
       acc.lib.push(val)
@@ -107,19 +105,15 @@ const compute = req => {
     lib.books.sort((a, b) => req.books[b] - req.books[a])
     const books = lib.books.filter(book => !alreadyScannedBook.includes(book)).slice(0, bookleft - 1)
     alreadyScannedBook.push(books)
-    return {
-      id,
-      books
-    }
+    return {id, books}
   })
 
-
-  return {
-    name: req.name,
-    libraries
-  }
+  return {name: req.name, libraries}
 }
 
+const improve = (req, res) => {
+  return res
+}
 
 const main = async () => {
   const folder = 'data'
@@ -127,7 +121,13 @@ const main = async () => {
 
   const scores = files.map(f => {
     const file = readFile(folder + '/' + f)
-    const res = compute(file)
+    let res = glouton(file)
+    let oldScore = score(file, res)
+    do {
+      oldScore = score(file, res)
+      res = improve(file, res)
+    } while (score(file, res) > oldScore)
+
     printResFile(file, res)
     return score(file, res)
   })
